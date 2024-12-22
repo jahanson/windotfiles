@@ -1,3 +1,7 @@
+function Invoke-WinUtil {
+    Invoke-ElevatedCommand { Invoke-RestMethod "https://christitus.com/win" | Invoke-Expression }
+}
+
 function Invoke-ElevatedCommand {
     param([scriptblock]$ScriptBlock)
     
