@@ -19,5 +19,3 @@ New-Item -Path $hsndevPath -Value (Join-Path $HOME "projects/windotfiles/Powersh
 
 # Create a symbolic link to the Microsoft.PowerShell_profile.ps1 file
 New-Item -Path $PROFILE -Value $gitRepoPath/PowerShell/Microsoft.PowerShell_profile.ps1 -ItemType SymbolicLink -Force
-
-
