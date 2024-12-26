@@ -1,7 +1,11 @@
 . $PSScriptRoot/Scripts/hsndev/functions.ps1
-# What the heck windows? Why is where an alias for Where-Object? Be normal!
+# Linux-like aliases
+# which/where
 Remove-Item -Path Alias:where -Force
 Set-Alias -Name where -Value where.exe -Force
+New-Alias which where.exe
+# grep
+New-Alias grep Select-String
 # ls --> lsd
 Set-Alias ls lsd
 function l { lsd -l $args }
