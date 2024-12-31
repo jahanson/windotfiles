@@ -1,0 +1,3 @@
+[wsl2]
+memory=2GB  # Memory allocation for WSL2 VM
+swap=4GB   # Swap space size (0 for no swap)
