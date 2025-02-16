@@ -488,3 +488,85 @@ Set-PSReadLineOption -AddToHistoryHandler {
     $hasSensitive = $sensitive | Where-Object { $line -match $_ }
     return ($null -eq $hasSensitive)
 }
+
+function New-SymLink {
+    <#
+    .SYNOPSIS
+        Creates a symbolic link, mimicking the Linux 'ln -s' command.
+
+    .DESCRIPTION
+        Creates a symbolic link to a target file or directory. By default, creates
+        a symbolic link in the current directory with the same name as the target.
+        Supports both files and directories.
+
+    .PARAMETER Target
+        The path to the target file or directory that the symbolic link will point to.
+        Can be relative or absolute path.
+
+    .PARAMETER Link
+        Optional. The path where the symbolic link will be created.
+        If not specified, creates the link in the current directory with the same name as the target.
+
+    .PARAMETER Force
+        Optional. If specified, overwrites an existing symbolic link at the destination.
+
+    .EXAMPLE
+        New-SymLink -Target "~/Documents/file.txt" -Link "~/Desktop/file.txt"
+        Creates a symbolic link on the desktop pointing to a file in Documents.
+
+    .EXAMPLE
+        New-SymLink -Target "C:\Projects\repo" -Link "C:\workspace\repo" -Force
+        Creates a symbolic link to a directory, overwriting if it exists.
+
+    .NOTES
+        Requires elevated privileges to create symbolic links by default on Windows.
+        Use 'sudo' or run PowerShell as administrator if needed.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$Target,
+
+        [Parameter(Position = 1)]
+        [string]$Link,
+
+        [switch]$Force
+    )
+
+    try {
+        # Resolve the target path to absolute path
+        $Target = Resolve-Path $Target -ErrorAction Stop | Select-Object -ExpandProperty Path
+
+        # If no link path specified, use the target's name in current directory
+        if (-not $Link) {
+            $Link = Join-Path (Get-Location) (Split-Path $Target -Leaf)
+        }
+        # Resolve the link path
+        $Link = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Link)
+
+        # Check if target exists
+        if (-not (Test-Path $Target)) {
+            throw "Target path '$Target' does not exist."
+        }
+
+        # Check if link already exists
+        if (Test-Path $Link) {
+            if ($Force) {
+                Remove-Item $Link -Force
+            }
+            else {
+                throw "Link path '$Link' already exists. Use -Force to overwrite."
+            }
+        }
+
+        # Create the symbolic link
+        New-Item -ItemType SymbolicLink -Path $Link -Target $Target | Out-Null
+        Write-Host "Created symbolic link: '$Link' -> '$Target'"
+    }
+    catch {
+        Write-Error "Failed to create symbolic link: $_"
+        if ($_.Exception.Message -match "Access is denied") {
+            Write-Warning "You may need to run PowerShell as Administrator to create symbolic links."
+        }
+    }
+}

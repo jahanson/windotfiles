@@ -26,7 +26,7 @@ $updateInterval = 7
     - Enhanced tab completion with PSReadline
     - PowerShell update management
     - Elevated command execution support
-    - System utilities (cache clearing, zip extraction)
+    - System utilities (cache clearing, zip extraction, symbolic links)
     - Network utilities (public IP lookup, DNS flushing)
     - Profile management (edit, update, reload)
     - Unix-like commands (df, sed, pkill, pgrep, head, tail)
@@ -35,7 +35,7 @@ $updateInterval = 7
     - Smart directory navigation with zoxide
 .NOTES
     Author: jahanson
-    Last Updated: 2024-03-21
+    Last Updated: 2025-02-16
     Inspiration: Chris Titus (https://github.com/ChrisTitusTech/powershell-profile/)
 #>
 
@@ -119,14 +119,16 @@ else { 'notepad' }
 Set-Alias -Name vim -Value $EDITOR
 
 # Aliases Linux-like aliases which/where
-Remove-Item -Path Alias:where -Force
+if (Test-Path Alias:where) {
+    Remove-Item -Path Alias:where -Force
+}
 Set-Alias -Name where -Value where.exe -Force
 Set-Alias which where.exe
 # Set UNIX-like aliases for the admin command, so sudo <command> will run the command with elevated rights.
 Set-Alias -Name su -Value admin
 Set-Alias -Name Reload-Profile -Value Update-Profile
 Set-Alias -Name unzip -Value Expand-ZipFile
-
+Set-Alias -Name ln -Value New-SymLink -Option AllScope -Force
 
 <# grep #>
 Set-Alias grep Select-String
@@ -166,10 +168,23 @@ Import-Module -Name Microsoft.WinGet.CommandNotFound
 
 # To display all available options in the menu
 Set-PSReadlineKeyHandler -Key Tab -Function MenuComplete
-<# github-cli completion #>
-$(gh completion -s powershell) | Out-String | Invoke-Expression
-$(kubectl completion powershell) | Out-String | Invoke-Expression
-$(helmfile completion powershell) | Out-String | Invoke-Expression
+
+<# Command completions for CLI tools #>
+# GitHub CLI completion
+if (Get-Command gh -ErrorAction SilentlyContinue) {
+    $(gh completion -s powershell) | Out-String | Invoke-Expression
+}
+
+# Kubectl completion
+if (Get-Command kubectl -ErrorAction SilentlyContinue) {
+    $(kubectl completion powershell) | Out-String | Invoke-Expression
+}
+
+# Helmfile completion
+if (Get-Command helmfile -ErrorAction SilentlyContinue) {
+    $(helmfile completion powershell) | Out-String | Invoke-Expression
+}
+
 <# Azure CLI completion #>
 Register-ArgumentCompleter -Native -CommandName az -ScriptBlock {
     param($commandName, $wordToComplete, $cursorPosition)
@@ -188,7 +203,6 @@ Register-ArgumentCompleter -Native -CommandName az -ScriptBlock {
     }
     Remove-Item $completion_file, Env:\_ARGCOMPLETE_STDOUT_FILENAME, Env:\ARGCOMPLETE_USE_TEMPFILES, Env:\COMP_LINE, Env:\COMP_POINT, Env:\_ARGCOMPLETE, Env:\_ARGCOMPLETE_SUPPRESS_SPACE, Env:\_ARGCOMPLETE_IFS, Env:\_ARGCOMPLETE_SHELL
 }
-# }
 
 ## Titus Aliases
 ### Quality of Life Aliases
