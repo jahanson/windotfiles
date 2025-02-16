@@ -1,5 +1,6 @@
 {
     "files.associations": {
         ".wslconfig": "ini"
-    }
+    },
+    "editor.formatOnSave": true
 }
