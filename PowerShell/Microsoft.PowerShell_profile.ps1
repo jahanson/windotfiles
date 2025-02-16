@@ -1,6 +1,7 @@
 . $PSScriptRoot/Scripts/hsndev/functions.ps1
 
-enableTerminalIcons = $true
+# Enable Terminal Icons module for enhanced file and folder display
+$enableTerminalIcons = $true
 
 # Define the path to the file that stores the last execution time
 $timeFilePath = "$env:USERPROFILE\Documents\PowerShell\LastExecutionTime.txt"
