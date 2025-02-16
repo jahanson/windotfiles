@@ -570,3 +570,12 @@ function New-SymLink {
         }
     }
 }
+
+# Custom exit function to ensure reliable shell exit
+function exit {
+    param(
+        [Parameter(Position = 0)]
+        [int]$Code = 0
+    )
+    [Environment]::Exit($Code)
+}
