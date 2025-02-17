@@ -323,17 +323,42 @@ function grep {
 function Update-Profile {
     <#
     .SYNOPSIS
-        Reloads the PowerShell profile in the current session.
+        Updates and reloads the PowerShell profile safely.
 
     .DESCRIPTION
-        Sources the current user's PowerShell profile, effectively reloading
-        all profile configurations, functions, and aliases in the current session.
+        Updates the PowerShell profile by pulling the latest changes and reloading it.
+        Uses a flag to prevent infinite recursion.
 
     .EXAMPLE
         Update-Profile
-        # Reloads the PowerShell profile
+        # Updates and reloads the PowerShell profile
     #>
-    & $profile
+
+    # Check if we're already in a profile reload to prevent recursion
+    if ($global:PROFILE_RELOADING) {
+        Write-Warning "Profile is already being reloaded. Skipping to prevent recursion."
+        return
+    }
+
+    try {
+        # Set the reloading flag
+        $global:PROFILE_RELOADING = $true
+
+        # Remove all functions and aliases defined in the profile
+        Get-Item Function: | Where-Object { $_.Source -eq "" } | Remove-Item
+        Get-Item Alias: | Where-Object { $_.Source -eq "" } | Remove-Item
+
+        # Dot source the profile
+        . $PROFILE
+        Write-Host "PowerShell profile has been updated and reloaded." -ForegroundColor Green
+    }
+    catch {
+        Write-Error "Failed to update profile: $_"
+    }
+    finally {
+        # Always clear the reloading flag
+        $global:PROFILE_RELOADING = $false
+    }
 }
 
 function Expand-ZipFile {

@@ -35,7 +35,7 @@ $updateInterval = 7
     - Smart directory navigation with zoxide
 .NOTES
     Author: jahanson
-    Last Updated: 2025-02-16
+    Last Updated: 2025-02-17
     Inspiration: Chris Titus (https://github.com/ChrisTitusTech/powershell-profile/)
 #>
 
