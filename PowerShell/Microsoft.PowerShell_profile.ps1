@@ -1,7 +1,7 @@
 . $PSScriptRoot/Scripts/hsndev/functions.ps1
 
 # Enable Terminal Icons module for enhanced file and folder display
-$enableTerminalIcons = $true
+$enableTerminalIcons = $false
 
 # Define the path to the file that stores the last execution time
 $timeFilePath = "$env:USERPROFILE\Documents\PowerShell\LastExecutionTime.txt"
@@ -16,7 +16,7 @@ $updateInterval = 7
 .DESCRIPTION
     This PowerShell profile configures a customized shell environment with:
     - Terminal icons and visual enhancements
-    - Custom aliases and functions (where, grep, ls/lsd, winutil, printenv, dig)
+    - Custom aliases and functions (where, grep, ls/lsd, winutil, printenv, dig, ssh-copy-id)
     - Environment path synchronization and management
     - Telemetry opt-out settings
     - Module management and auto-installation
@@ -35,7 +35,7 @@ $updateInterval = 7
     - Smart directory navigation with zoxide
 .NOTES
     Author: jahanson
-    Last Updated: 2025-02-17
+    Last Updated: 2025-02-21
     Inspiration: Chris Titus (https://github.com/ChrisTitusTech/powershell-profile/)
 #>
 
@@ -129,6 +129,8 @@ Set-Alias -Name su -Value admin
 Set-Alias -Name Reload-Profile -Value Update-Profile
 Set-Alias -Name unzip -Value Expand-ZipFile
 Set-Alias -Name ln -Value New-SymLink -Option AllScope -Force
+Set-Alias -Name ssh-copy-id -Value Copy-SshId
+Set-Alias -Name cosign -Value cosign-windows-amd64.exe
 
 <# grep #>
 Set-Alias grep Select-String

@@ -345,8 +345,8 @@ function Update-Profile {
         $global:PROFILE_RELOADING = $true
 
         # Remove all functions and aliases defined in the profile
-        Get-Item Function: | Where-Object { $_.Source -eq "" } | Remove-Item
-        Get-Item Alias: | Where-Object { $_.Source -eq "" } | Remove-Item
+        Get-Item Function: | Where-Object { $_.Source -eq "" } | ForEach-Object { Remove-Item -Path "Function:\$($_.Name)" -ErrorAction SilentlyContinue }
+        Get-Item Alias: | Where-Object { $_.Source -eq "" } | ForEach-Object { Remove-Item -Path "Alias:\$($_.Name)" -ErrorAction SilentlyContinue }
 
         # Dot source the profile
         . $PROFILE
@@ -395,8 +395,59 @@ function Expand-ZipFile {
     Expand-Archive -Path $fullFile -DestinationPath $pwd
 }
 
+function Copy-SshId {
+    <#
+    .SYNOPSIS
+        PowerShell implementation of ssh-copy-id to copy SSH public keys to remote hosts.
 
-## From https://github.com/ChrisTitusTech/powershell-profile/
+    .DESCRIPTION
+        Copies your SSH public key to a remote host's authorized_keys file.
+
+    .PARAMETER RemoteHost
+        The remote host to copy the key to (e.g. user@hostname or hostname)
+
+    .PARAMETER KeyFile
+        Optional path to the public key file. Defaults to ~/.ssh/id_ed25519.pub
+
+    .EXAMPLE
+        Copy-SshId user@remote-server
+        Copy-SshId -RemoteHost remote-server -KeyFile ~/.ssh/id_ed25519.pub
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$RemoteHost,
+
+        [Parameter(Mandatory = $false)]
+        [string]$KeyFile = "~/.ssh/id_ed25519.pub"
+    )
+
+    $KeyFile = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($KeyFile)
+
+    if (-not (Test-Path $KeyFile)) {
+        Write-Error "Public key file not found: $KeyFile"
+        return
+    }
+
+    $pubKey = Get-Content $KeyFile
+
+    Write-Host "Copying SSH public key to $RemoteHost..."
+
+    try {
+        $remoteScript = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$pubKey' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+        ssh $RemoteHost $remoteScript
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Public key successfully copied to $RemoteHost" -ForegroundColor Green
+        }
+        else {
+            Write-Error "Failed to copy public key to $RemoteHost"
+        }
+    }
+    catch {
+        Write-Error "Error copying key: $_"
+    }
+}
+
 function Clear-Cache {
     # add clear cache logic here
     Write-Host "Clearing cache..." -ForegroundColor Cyan
