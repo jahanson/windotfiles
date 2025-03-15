@@ -1,14 +1,5 @@
 . $PSScriptRoot/Scripts/hsndev/functions.ps1
 
-# Enable Terminal Icons module for enhanced file and folder display
-$enableTerminalIcons = $false
-
-# Define the path to the file that stores the last execution time
-$timeFilePath = "$env:USERPROFILE\Documents\PowerShell\LastExecutionTime.txt"
-
-# Define the update interval in days, set to -1 to always check
-$updateInterval = 7
-
 <#
 .SYNOPSIS
     Personal PowerShell profile configuration for enhanced development environment.
@@ -35,9 +26,71 @@ $updateInterval = 7
     - Smart directory navigation with zoxide
 .NOTES
     Author: jahanson
-    Last Updated: 2025-02-21
+    Last Updated: 2025-03-15
     Inspiration: Chris Titus (https://github.com/ChrisTitusTech/powershell-profile/)
 #>
+
+## Prompt Customization
+# Enhanced PowerShell Experience
+# Enhanced PSReadLine Configuration
+$PSReadLineOptions = @{
+    EditMode                      = 'Windows'
+    HistoryNoDuplicates           = $true
+    HistorySearchCursorMovesToEnd = $true
+    Colors                        = @{
+        Command   = '#87CEEB'  # SkyBlue (pastel)
+        Parameter = '#98FB98'  # PaleGreen (pastel)
+        Operator  = '#FFB6C1'  # LightPink (pastel)
+        Variable  = '#DDA0DD'  # Plum (pastel)
+        String    = '#FFDAB9'  # PeachPuff (pastel)
+        Number    = '#B0E0E6'  # PowderBlue (pastel)
+        Type      = '#F0E68C'  # Khaki (pastel)
+        Comment   = '#D3D3D3'  # LightGray (pastel)
+        Keyword   = '#8367c7'  # Violet (pastel)
+        Error     = '#FF6347'  # Tomato (keeping it close to red for visibility)
+    }
+    PredictionSource              = 'History'
+    PredictionViewStyle           = 'ListView'
+    BellStyle                     = 'None'
+}
+
+# Import PSReadLine module first to ensure it's available before configuring
+if (Get-Module -ListAvailable -Name PSReadLine) {
+    Import-Module PSReadLine
+    Set-PSReadLineOption @PSReadLineOptions
+
+    # Custom key handlers
+    Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
+    Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward
+    Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+d' -Function DeleteChar
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+w' -Function BackwardDeleteWord
+    Set-PSReadLineKeyHandler -Chord 'Alt+d' -Function DeleteWord
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+LeftArrow' -Function BackwardWord
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+RightArrow' -Function ForwardWord
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+z' -Function Undo
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+y' -Function Redo
+
+    # Improved prediction settings - only if PSReadLine version supports it
+    $psrlVer = (Get-Module PSReadLine).Version
+    if ($psrlVer.Major -gt 2 -or ($psrlVer.Major -eq 2 -and $psrlVer.Minor -ge 1)) {
+        Set-PSReadLineOption -PredictionSource HistoryAndPlugin
+    }
+
+    # Safe way to add to history - only if PSReadLine is fully loaded
+    if ($null -ne (Get-Command -Name Set-PSReadLineOption -ErrorAction SilentlyContinue)) {
+        Set-PSReadLineOption -AddToHistoryHandler {
+            param($line)
+            $sensitive = @('password', 'secret', 'token', 'apikey', 'connectionstring')
+            $hasSensitive = $sensitive | Where-Object { $line -match $_ }
+            return ($null -eq $hasSensitive)
+        }
+    }
+}
+
+# Improved prediction settings
+Set-PSReadLineOption -PredictionSource HistoryAndPlugin
+Set-PSReadLineOption -MaximumHistoryCount 10000
 
 # Ability to disable synchronizing user PATH
 if (-not $env:NO_PATH_SYNC) {
@@ -50,55 +103,6 @@ if ([bool]([System.Security.Principal.WindowsIdentity]::GetCurrent()).IsSystem) 
     [System.Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', 'true', [System.EnvironmentVariableTarget]::Machine)
 }
 
-# Terminal Icons
-if ($enableTerminalIcons) {
-    # Import Modules and External Profiles
-    # Ensure Terminal-Icons module is installed before importing
-    if (-not (Get-Module -ListAvailable -Name Terminal-Icons)) {
-        Install-Module -Name Terminal-Icons -Scope CurrentUser -Force -SkipPublisherCheck
-    }
-    Import-Module -Name Terminal-Icons
-}
-
-# Update the profile if hasn't been updated in the last $updateInterval days
-$shouldUpdate = $false
-
-# Check if updates should always run (-1 means always update)
-if ($updateInterval -eq -1) {
-    Write-Verbose "Update interval is -1, forcing update check"
-    $shouldUpdate = $true
-}
-# Check if this is the first run (no timestamp file exists)
-elseif (-not (Test-Path $timeFilePath)) {
-    Write-Verbose "No timestamp file found at $timeFilePath, running first-time update"
-    $shouldUpdate = $true
-}
-# Check if enough time has passed since last update
-else {
-    try {
-        # Get the last update timestamp and parse it as a date
-        $lastUpdate = Get-Content -Path $timeFilePath -ErrorAction Stop | Select-Object -First 1
-        $lastUpdateTime = [datetime]::ParseExact($lastUpdate, 'yyyy-MM-dd', $null)
-
-        # Calculate days since last update
-        $daysSinceUpdate = ((Get-Date) - $lastUpdateTime).TotalDays
-        $shouldUpdate = $daysSinceUpdate -gt $updateInterval
-
-        Write-Verbose "Last update was $daysSinceUpdate days ago (threshold: $updateInterval days)"
-    }
-    catch {
-        # Handle any errors reading or parsing the timestamp
-        Write-Warning "Failed to parse last update time, forcing update: $($_.Exception.Message)"
-        $shouldUpdate = $true
-    }
-}
-
-if ($shouldUpdate) {
-    Update-Profile
-    $currentTime = Get-Date -Format 'yyyy-MM-dd'
-    $currentTime | Out-File -FilePath $timeFilePath
-}
-
 # Admin Check and Prompt Customization
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 function prompt {
@@ -109,12 +113,10 @@ $Host.UI.RawUI.WindowTitle = "PowerShell {0}$adminSuffix" -f $PSVersionTable.PSV
 
 # Editor Configuration
 $EDITOR = if (Test-CommandExists nvim) { 'nvim' }
-elseif (Test-CommandExists pvim) { 'pvim' }
 elseif (Test-CommandExists vim) { 'vim' }
 elseif (Test-CommandExists vi) { 'vi' }
 elseif (Test-CommandExists code) { 'code' }
 elseif (Test-CommandExists notepad++) { 'notepad++' }
-elseif (Test-CommandExists sublime_text) { 'sublime_text' }
 else { 'notepad' }
 Set-Alias -Name vim -Value $EDITOR
 
@@ -129,7 +131,6 @@ Set-Alias -Name su -Value admin
 Set-Alias -Name Reload-Profile -Value Update-Profile
 Set-Alias -Name unzip -Value Expand-ZipFile
 Set-Alias -Name ln -Value New-SymLink -Option AllScope -Force
-Set-Alias -Name ssh-copy-id -Value Copy-SshId
 Set-Alias -Name cosign -Value cosign-windows-amd64.exe
 
 <# grep #>
@@ -151,20 +152,14 @@ function Show-Environment {
 }
 Set-Alias -Name printenv -Value Show-Environment
 
-<# Doggo - https://github.com/mr-karan/doggo #>
-Set-Alias -Name dig -Value doggo.exe -Force
-
 <# Starship init #>
-Invoke-Expression (&starship init powershell)
-
-# Disable complettion and module activation in non-Windows Terminal environments
-# if ($env:TERM_PROGRAM -eq "vscode") {
-#     Write-Host "Running in VS Code Terminal"
-# }
-# elseif ($env:WT_SESSION) {
-# It seems these work best in Windows Terminal
+if (Get-Command starship -ErrorAction SilentlyContinue) {
+    $(&starship init powershell) | Out-String | Invoke-Expression
+}
 <# Mise activate #>
-$(mise activate pwsh) | Out-String | Invoke-Expression
+if (Get-Command mise -ErrorAction SilentlyContinue) {
+    $(mise activate pwsh) | Out-String | Invoke-Expression
+}
 <# Command not found #>
 Import-Module -Name Microsoft.WinGet.CommandNotFound
 
@@ -180,11 +175,6 @@ if (Get-Command gh -ErrorAction SilentlyContinue) {
 # Kubectl completion
 if (Get-Command kubectl -ErrorAction SilentlyContinue) {
     $(kubectl completion powershell) | Out-String | Invoke-Expression
-}
-
-# Helmfile completion
-if (Get-Command helmfile -ErrorAction SilentlyContinue) {
-    $(helmfile completion powershell) | Out-String | Invoke-Expression
 }
 
 <# Azure CLI completion #>
@@ -233,46 +223,33 @@ function flushdns {
     Write-Host "DNS has been flushed"
 }
 
-## Prompt Customization
-# Enhanced PowerShell Experience
-# Enhanced PSReadLine Configuration
-$PSReadLineOptions = @{
-    EditMode                      = 'Windows'
-    HistoryNoDuplicates           = $true
-    HistorySearchCursorMovesToEnd = $true
-    Colors                        = @{
-        Command   = '#87CEEB'  # SkyBlue (pastel)
-        Parameter = '#98FB98'  # PaleGreen (pastel)
-        Operator  = '#FFB6C1'  # LightPink (pastel)
-        Variable  = '#DDA0DD'  # Plum (pastel)
-        String    = '#FFDAB9'  # PeachPuff (pastel)
-        Number    = '#B0E0E6'  # PowderBlue (pastel)
-        Type      = '#F0E68C'  # Khaki (pastel)
-        Comment   = '#D3D3D3'  # LightGray (pastel)
-        Keyword   = '#8367c7'  # Violet (pastel)
-        Error     = '#FF6347'  # Tomato (keeping it close to red for visibility)
+# Custom completion for common commands
+$scriptblock = {
+    param($wordToComplete, $commandAst, $cursorPosition)
+    $customCompletions = @{
+        'git'  = @('status', 'add', 'commit', 'push', 'pull', 'clone', 'checkout')
+        'npm'  = @('install', 'start', 'run', 'test', 'build')
+        'deno' = @('run', 'compile', 'bundle', 'test', 'lint', 'fmt', 'cache', 'info', 'doc', 'upgrade')
     }
-    PredictionSource              = 'History'
-    PredictionViewStyle           = 'ListView'
-    BellStyle                     = 'None'
+
+    $command = $commandAst.CommandElements[0].Value
+    if ($customCompletions.ContainsKey($command)) {
+        $customCompletions[$command] | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        }
+    }
 }
-Set-PSReadLineOption @PSReadLineOptions
+Register-ArgumentCompleter -Native -CommandName git, npm, deno -ScriptBlock $scriptblock
 
-# Custom key handlers
-Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
-Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward
-Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
-Set-PSReadLineKeyHandler -Chord 'Ctrl+d' -Function DeleteChar
-Set-PSReadLineKeyHandler -Chord 'Ctrl+w' -Function BackwardDeleteWord
-Set-PSReadLineKeyHandler -Chord 'Alt+d' -Function DeleteWord
-Set-PSReadLineKeyHandler -Chord 'Ctrl+LeftArrow' -Function BackwardWord
-Set-PSReadLineKeyHandler -Chord 'Ctrl+RightArrow' -Function ForwardWord
-Set-PSReadLineKeyHandler -Chord 'Ctrl+z' -Function Undo
-Set-PSReadLineKeyHandler -Chord 'Ctrl+y' -Function Redo
-
-# Improved prediction settings
-Set-PSReadLineOption -PredictionSource HistoryAndPlugin
-Set-PSReadLineOption -MaximumHistoryCount 10000
+# Adds terminal completion for `dotnet` command
+$scriptblock = {
+    param($wordToComplete, $commandAst, $cursorPosition)
+    dotnet complete --position $cursorPosition $commandAst.ToString() |
+    ForEach-Object {
+        [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+    }
+}
+Register-ArgumentCompleter -Native -CommandName dotnet -ScriptBlock $scriptblock
 
 # Custom completion for common commands
 $scriptblock = {
